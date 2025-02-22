@@ -1,3 +1,4 @@
+// wear60web/src/app/cart/page.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -216,7 +217,7 @@ export default function Cart() {
         return
       }
 
-      // Create order with selected address
+      // Create order with address_id
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({

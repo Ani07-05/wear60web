@@ -1,3 +1,4 @@
+-- wear60web/schema.sql
 -- Create tables for Wear60 e-commerce platform
 
 -- Enable UUID extension
@@ -33,6 +34,8 @@ CREATE TABLE IF NOT EXISTS orders (
     status VARCHAR(50) NOT NULL DEFAULT 'pending',
     total_amount DECIMAL(10,2) NOT NULL,
     shipping_address TEXT NOT NULL,
+    latitude DECIMAL(10,8),
+    longitude DECIMAL(11,8),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -128,6 +131,16 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can view their own order items') THEN
         CREATE POLICY "Users can view their own order items" ON order_items
             FOR SELECT USING (
+                EXISTS (
+                    SELECT 1 FROM orders
+                    WHERE orders.id = order_items.order_id
+                    AND orders.user_id = auth.uid()
+                )
+            );
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can insert their own order items') THEN
+        CREATE POLICY "Users can insert their own order items" ON order_items
+            FOR INSERT WITH CHECK (
                 EXISTS (
                     SELECT 1 FROM orders
                     WHERE orders.id = order_items.order_id

@@ -1,8 +1,10 @@
+// wear60web/src/app/orders/page.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { motion } from 'framer-motion'
+import OrderTracker from '@/components/OrderTracker'
 
 type OrderItem = {
   id: string
@@ -20,6 +22,8 @@ type Order = {
   status: string
   total_amount: number
   shipping_address: string
+  latitude: number | null
+  longitude: number | null
   created_at: string
   order_items: OrderItem[]
 }
@@ -27,6 +31,7 @@ type Order = {
 export default function Orders() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
+  const [trackingOrder, setTrackingOrder] = useState<Order | null>(null)
 
   useEffect(() => {
     fetchOrders()
@@ -115,12 +120,27 @@ export default function Orders() {
                 <div className="mt-4 pt-4 border-t border-white/10">
                   <p className="text-sm text-gray-400">Shipping Address:</p>
                   <p className="text-sm">{order.shipping_address}</p>
+                  <button
+                    onClick={() => setTrackingOrder(order)}
+                    className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                  >
+                    Track Order
+                  </button>
                 </div>
               </motion.div>
             ))}
           </div>
         )}
       </div>
+      {trackingOrder && (
+        <OrderTracker
+          orderId={trackingOrder.id}
+          latitude={trackingOrder.latitude}
+          longitude={trackingOrder.longitude}
+          status={trackingOrder.status}
+          onClose={() => setTrackingOrder(null)}
+        />
+      )}
     </div>
   )
 }

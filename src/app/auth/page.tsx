@@ -6,6 +6,23 @@ import { motion } from 'framer-motion'
 
 export default function Auth() {
   const [loading, setLoading] = useState(false)
+  const [user, setUser] = useState<any>(null)
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser(session.user)
+      }
+    })
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser(session.user)
+      }
+    })
+
+    return () => subscription?.unsubscribe()
+  }, [])
 
   const handleGoogleSignIn = async () => {
     try {
@@ -36,6 +53,16 @@ export default function Auth() {
 }
 
 function AuthHeader() {
+  const [user, setUser] = useState<any>(null)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser(session.user)
+      }
+    })
+  }, [])
+
   return (
     <section className="relative h-[40vh] overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600/20 to-purple-600/20 backdrop-blur">
       <div className="absolute inset-0 bg-black/40"></div>
@@ -45,7 +72,7 @@ function AuthHeader() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-6 text-5xl font-bold md:text-6xl"
         >
-          Welcome Back
+          {user ? `Welcome back, ${user.user_metadata?.first_name || user.email?.split('@')[0]}!` : 'Welcome Back'}
         </motion.h1>
         <motion.p 
           initial={{ opacity: 0, y: 20 }}
@@ -53,7 +80,7 @@ function AuthHeader() {
           transition={{ delay: 0.2 }}
           className="mb-8 text-lg text-gray-300 md:text-xl"
         >
-          Sign in to access your account
+          {user ? 'Manage your account and orders' : 'Sign in to access your account'}
         </motion.p>
       </div>
     </section>

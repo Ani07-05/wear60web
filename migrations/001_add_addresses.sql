@@ -1,3 +1,4 @@
+-- wear60web/migrations/001_add_addresses.sql
 -- Create addresses table
 CREATE TABLE IF NOT EXISTS addresses (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
