@@ -1,25 +1,15 @@
-// wear60web/src/app/orders/[id]/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
+import dynamic from 'next/dynamic';
 import { supabase } from '@/lib/supabase';
+import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
-// Fix Leaflet icon issue in Next.js
-// Add proper type for the icon prototype
-interface IconDefault extends L.Icon.Default {
-  _getIconUrl?: string;
-}
-
-// Fix the any type and use proper typing
-delete ((L.Icon.Default.prototype as IconDefault)._getIconUrl);
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
+// Dynamically import react-leaflet components with no SSR
+const MapWithNoSSR = dynamic(
+  () => import('../../../components/Map'),
+  { ssr: false }
+);
 
 type OrderLocation = {
   latitude: number;
@@ -28,11 +18,35 @@ type OrderLocation = {
   updated_at: string;
 };
 
-export default function OrderTrackingPage({ params }: { params: { id: string } }) {
+// Define all possible fields from the orders table
+type OrderPayload = {
+  id: string;
+  latitude: number;
+  longitude: number;
+  status: string;
+  updated_at: string;
+  created_at: string;
+  user_id?: string;
+  delivery_address?: string;
+  tracking_number?: string;
+  estimated_delivery?: string;
+  order_items?: Record<string, unknown>;
+  total_amount?: number;
+  payment_status?: string;
+  notes?: string;
+};
+
+type PageProps = {
+  params: {
+    id: string;
+  };
+  searchParams?: { [key: string]: string | string[] | undefined };
+};
+
+export default function OrderTrackingPage({ params }: PageProps) {
   const [orderLocation, setOrderLocation] = useState<OrderLocation | null>(null);
   const [error, setError] = useState<string>('');
 
-  // Move fetchOrderLocation inside useEffect to avoid dependency issues
   useEffect(() => {
     const fetchOrderLocation = async () => {
       try {
@@ -50,10 +64,8 @@ export default function OrderTrackingPage({ params }: { params: { id: string } }
       }
     };
 
-    // Initial fetch of order location
     fetchOrderLocation();
 
-    // Set up real-time subscription
     const channel = supabase
       .channel(`order-${params.id}`)
       .on('postgres_changes', {
@@ -61,8 +73,9 @@ export default function OrderTrackingPage({ params }: { params: { id: string } }
         schema: 'public',
         table: 'orders',
         filter: `id=eq.${params.id}`,
-      }, (payload) => {
-        const { latitude, longitude, status, updated_at } = payload.new;
+      }, (payload: RealtimePostgresChangesPayload<OrderPayload>) => {
+        const newData = payload.new as OrderPayload;
+        const { latitude, longitude, status, updated_at } = newData;
         setOrderLocation({ latitude, longitude, status, updated_at });
       })
       .subscribe();
@@ -71,6 +84,7 @@ export default function OrderTrackingPage({ params }: { params: { id: string } }
       supabase.removeChannel(channel);
     };
   }, [params.id]);
+
   if (error) return <div className="p-4 text-red-500">{error}</div>;
   if (!orderLocation) return <div className="p-4">Loading...</div>;
 
@@ -82,22 +96,15 @@ export default function OrderTrackingPage({ params }: { params: { id: string } }
         <p>Last Updated: {new Date(orderLocation.updated_at).toLocaleString()}</p>
       </div>
       <div className="h-[500px] w-full rounded-lg overflow-hidden">
-        <MapContainer
-          center={[orderLocation.latitude, orderLocation.longitude]}
-          zoom={13}
-          style={{ height: '100%', width: '100%' }}
-        >
-          <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        {orderLocation && (
+          <MapWithNoSSR
+            center={[orderLocation.latitude, orderLocation.longitude]}
+            marker={{
+              position: [orderLocation.latitude, orderLocation.longitude],
+              popup: `Order #${params.id}\nStatus: ${orderLocation.status}`
+            }}
           />
-          <Marker position={[orderLocation.latitude, orderLocation.longitude]}>
-            <Popup>
-              Order #{params.id}<br />
-              Status: {orderLocation.status}
-            </Popup>
-          </Marker>
-        </MapContainer>
+        )}
       </div>
     </div>
   );
