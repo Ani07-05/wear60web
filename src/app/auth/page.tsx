@@ -4,20 +4,28 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { motion } from 'framer-motion'
 
+interface User {
+  id: string;
+  email: string;
+  user_metadata?: {
+    first_name?: string;
+  };
+}
+
 export default function Auth() {
   const [loading, setLoading] = useState(false)
-  const [user, setUser] = useState<any>(null)
-
+  // Remove user state since it's not being used
+  
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        setUser(session.user)
+        // Remove setUser since we're not using the user state
       }
     })
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        setUser(session.user)
+        // Remove setUser since we're not using the user state
       }
     })
 
@@ -53,12 +61,16 @@ export default function Auth() {
 }
 
 function AuthHeader() {
-  const [user, setUser] = useState<any>(null)
-
+  const [session, setSession] = useState<{ user: User } | null>(null);
+  
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        setUser(session.user)
+        setSession({ user: {
+          id: session.user.id,
+          email: session.user.email || '',
+          user_metadata: session.user.user_metadata
+        }})
       }
     })
   }, [])
@@ -72,7 +84,7 @@ function AuthHeader() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-6 text-5xl font-bold md:text-6xl"
         >
-          {user ? `Welcome back, ${user.user_metadata?.first_name || user.email?.split('@')[0]}!` : 'Welcome Back'}
+          {session ? `Welcome back, ${session.user.user_metadata?.first_name || session.user.email?.split('@')[0]}!` : 'Welcome Back'}
         </motion.h1>
         <motion.p 
           initial={{ opacity: 0, y: 20 }}
@@ -80,7 +92,7 @@ function AuthHeader() {
           transition={{ delay: 0.2 }}
           className="mb-8 text-lg text-gray-300 md:text-xl"
         >
-          {user ? 'Manage your account and orders' : 'Sign in to access your account'}
+          {session ? 'Manage your account and orders' : 'Sign in to access your account'}
         </motion.p>
       </div>
     </section>

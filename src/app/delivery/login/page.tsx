@@ -6,49 +6,59 @@ import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 
+interface AuthError {
+  message: string;
+}
+
 export default function DeliveryLogin() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
-
+  
     try {
       // First, attempt to sign in
       const { data: { user }, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password
       })
-
+  
       if (signInError) throw signInError
-
+  
       // Then, verify if the user is a delivery partner
       const { data: deliveryPartner, error: roleError } = await supabase
         .from('delivery_partners')
         .select('id')
         .eq('user_id', user?.id)
         .single()
-
+  
       if (roleError || !deliveryPartner) {
         // If not a delivery partner, sign them out and show error
         await supabase.auth.signOut()
         throw new Error('Unauthorized access. Please contact support if you think this is a mistake.')
       }
-
+  
       // If all checks pass, redirect to delivery portal
       router.push('/delivery')
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      if (err instanceof Error || isAuthError(err)) {
+        setError(err.message)
+      } else {
+        setError('An unexpected error occurred')
+      }
     } finally {
       setLoading(false)
     }
   }
-
+  // Type guard for auth error
+  function isAuthError(error: unknown): error is AuthError {
+    return typeof error === 'object' && error !== null && 'message' in error
+  }
   return (
     <div className="min-h-screen flex items-center justify-center bg-black">
       <motion.div

@@ -2,39 +2,36 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { motion } from "framer-motion"
-import { Menu, X, ShoppingCart, User } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useCart } from "@/contexts/CartContext"
 
-const navItems = [
-  { name: "Home", href: "/" },
-  { name: "Shop", href: "/shop" },
-  { name: "Cart", href: "/cart" },
-  { name: "Orders", href: "/orders" },
-  { name: "Account", href: "/auth" },
-]
+interface User {
+  email: string;
+  user_metadata?: {
+    first_name?: string;
+  };
+}
 
 export default function Navbar() {
-  const [isOpen, setIsOpen] = useState(false)
-  const [session, setSession] = useState(null)
-  const [user, setUser] = useState(null)
-  const [isClient, setIsClient] = useState(false)
+  const [user, setUser] = useState<User | null>(null)
   const { cartCount } = useCart()
 
   useEffect(() => {
-    setIsClient(true)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session as any)
-      if (session?.user) {
-        setUser(session.user as any)
+      if (session?.user?.email) {
+        setUser({
+          email: session.user.email,
+          user_metadata: session.user.user_metadata
+        })
       }
     })
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session as any)
-      if (session?.user) {
-        setUser(session.user as any)
+      if (session?.user?.email) {
+        setUser({
+          email: session.user.email,
+          user_metadata: session.user.user_metadata
+        })
       }
     })
 
@@ -50,9 +47,15 @@ export default function Navbar() {
           </Link>
           <div className="hidden md:flex items-center space-x-6">
             {user && (
-              <span className="text-sm text-gray-300">Welcome, {(user as any).user_metadata?.first_name || (user as any).email?.split('@')[0]}!</span>
+              <span className="text-sm text-gray-300">
+                Welcome, {user.user_metadata?.first_name || user.email.split('@')[0]}!
+              </span>
             )}
-            {navItems.map((item) => (
+            {[
+              { name: 'Shop', href: '/shop' },
+              { name: 'About', href: '/about' },
+              { name: 'Cart', href: '/cart' }
+            ].map((item) => (
               <Link 
                 key={item.name} 
                 href={item.href} 
@@ -72,4 +75,3 @@ export default function Navbar() {
     </nav>
   )
 }
-

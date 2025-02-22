@@ -18,9 +18,9 @@ declare global {
         }) => void;
       };
       Marker: new () => {
-        setLngLat: (coordinates: [number, number]) => any;
-        setColor: (color: string) => any;
-        addTo: (map: any) => void;
+        setLngLat: (coordinates: [number, number]) => Marker;
+        setColor: (color: string) => Marker;
+        addTo: (map: Map) => void;
       };
     };
   }

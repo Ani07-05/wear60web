@@ -1,4 +1,3 @@
-// wear60web/src/app/cart/page.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -8,6 +7,28 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
 
+// Database types
+interface Product {
+  name: string
+  price: number
+  image_url: string
+}
+
+interface CartItemResponse {
+  product_id: string
+  quantity: number
+  product: Product | null
+}
+
+interface OrderResponse {
+  id: string
+  user_id: string
+  total_amount: number
+  address_id: string
+  status: string
+}
+
+// Component types
 type CartItem = {
   product_id: string
   quantity: number
@@ -30,18 +51,22 @@ type Address = {
   is_default: boolean
 }
 
-
+type OrderItem = {
+  order_id: string
+  product_id: string
+  quantity: number
+  price_at_time: number
+}
 
 export default function Cart() {
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [couponCode, setCouponCode] = useState('')
-  const [discount, setDiscount] = useState(0)
+  const [discount] = useState(0)
   const { updateCartCount } = useCart()
   const [addresses, setAddresses] = useState<Address[]>([])
   const [selectedAddressId, setSelectedAddressId] = useState<string>('')
   const [showAddressForm, setShowAddressForm] = useState(false)
-  const [newAddress, setNewAddress] = useState<Omit<Address, 'id' | 'is_default'>>({ 
+  const [newAddress, setNewAddress] = useState<Omit<Address, 'id' | 'is_default'>>({
     full_name: '',
     street_address: '',
     city: '',
@@ -61,21 +86,23 @@ export default function Cart() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data, error } = await supabase
+      const { data: addresses, error } = await supabase // Rename data to addresses to avoid unused variable
         .from('addresses')
         .select('*')
         .eq('user_id', user.id)
         .order('is_default', { ascending: false })
 
       if (error) throw error
-      setAddresses(data || [])
+      
+      const typedAddresses = addresses as Address[]
+      setAddresses(typedAddresses || [])
       
       // Set default address if available
-      const defaultAddress = data?.find(addr => addr.is_default)
+      const defaultAddress = typedAddresses?.find(addr => addr.is_default)
       if (defaultAddress) {
         setSelectedAddressId(defaultAddress.id)
-      } else if (data && data.length > 0) {
-        setSelectedAddressId(data[0].id)
+      } else if (typedAddresses && typedAddresses.length > 0) {
+        setSelectedAddressId(typedAddresses[0].id)
       }
     } catch (error) {
       console.error('Error fetching addresses:', error)
@@ -87,12 +114,12 @@ export default function Cart() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data, error } = await supabase
+      const { error } = await supabase // Remove unused 'data' from destructuring
         .from('addresses')
         .insert({
           ...newAddress,
           user_id: user.id,
-          is_default: addresses.length === 0 // Make it default if it's the first address
+          is_default: addresses.length === 0
         })
         .select()
         .single()
@@ -136,7 +163,7 @@ export default function Cart() {
       if (error) throw error
       
       // Transform the data to match CartItem type
-      const typedCartItems: CartItem[] = (data || []).map(item => ({
+      const typedCartItems: CartItem[] = (data as unknown as CartItemResponse[]).map(item => ({
         product_id: item.product_id,
         quantity: item.quantity,
         product: {
@@ -192,18 +219,8 @@ export default function Cart() {
       console.error('Error removing item:', error)
     }
   }
-
-  function applyCoupon() {
-    // Simple coupon logic - you can expand this
-    if (couponCode === 'SAVE20') {
-      setDiscount(0.2) // 20% discount
-    } else if (couponCode === 'SAVE10') {
-      setDiscount(0.1) // 10% discount
-    } else {
-      alert('Invalid coupon code')
-    }
-  }
-
+  // Either remove applyCoupon function if not needed, or add UI elements to use it
+  // If you want to keep the coupon functionality, you'll need to add a button/input to use it
   async function handleCheckout() {
     if (!selectedAddressId) {
       alert('Please select a delivery address')
@@ -231,9 +248,11 @@ export default function Cart() {
 
       if (orderError) throw orderError
 
+      const typedOrder = order as OrderResponse
+
       // Create order items
-      const orderItems = cartItems.map(item => ({
-        order_id: order.id,
+      const orderItems: OrderItem[] = cartItems.map(item => ({
+        order_id: typedOrder.id,
         product_id: item.product_id,
         quantity: item.quantity,
         price_at_time: item.product.price
@@ -386,11 +405,7 @@ export default function Cart() {
                     {addresses.map(address => (
                       <div
                         key={address.id}
-                        className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                          selectedAddressId === address.id
-                            ? 'bg-white/20'
-                            : 'bg-white/10 hover:bg-white/15'
-                        }`}
+                        className={`p-3 rounded-lg cursor-pointer transition-colors ${address.is_default ? 'bg-white/20' : 'bg-white/10 hover:bg-white/15' }`}
                         onClick={() => setSelectedAddressId(address.id)}
                       >
                         <div className="flex items-start justify-between">
@@ -406,124 +421,123 @@ export default function Cart() {
                             <span className="text-xs bg-white/20 px-2 py-1 rounded">
                               Default
                             </span>
-                          )}
+                          )}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {!showAddressForm ? (
+                      <button
+                        onClick={() => setShowAddressForm(true)}
+                        className="w-full rounded-lg bg-white/10 px-4 py-2 text-sm transition-colors hover:bg-white/20"
+                      >
+                        Add New Address
+                      </button>
+                    ) : (
+                      <div className="space-y-4 bg-white/10 p-4 rounded-lg">
+                        <input
+                          type="text"
+                          placeholder="Full Name"
+                          value={newAddress.full_name}
+                          onChange={(e) => setNewAddress(prev => ({ ...prev, full_name: e.target.value }))}
+                          className="w-full rounded-lg bg-white/10 px-4 py-2 text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-white/20"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Phone Number"
+                          value={newAddress.phone}
+                          onChange={(e) => setNewAddress(prev => ({ ...prev, phone: e.target.value }))}
+                          className="w-full rounded-lg bg-white/10 px-4 py-2 text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-white/20"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Street Address"
+                          value={newAddress.street_address}
+                          onChange={(e) => setNewAddress(prev => ({ ...prev, street_address: e.target.value }))}
+                          className="w-full rounded-lg bg-white/10 px-4 py-2 text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-white/20"
+                        />
+                        <div className="grid grid-cols-2 gap-4">
+                          <input
+                            type="text"
+                            placeholder="City"
+                            value={newAddress.city}
+                            onChange={(e) => setNewAddress(prev => ({ ...prev, city: e.target.value }))}
+                            className="w-full rounded-lg bg-white/10 px-4 py-2 text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-white/20"
+                          />
+                          <input
+                            type="text"
+                            placeholder="State"
+                            value={newAddress.state}
+                            onChange={(e) => setNewAddress(prev => ({ ...prev, state: e.target.value }))}
+                            className="w-full rounded-lg bg-white/10 px-4 py-2 text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-white/20"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <input
+                            type="text"
+                            placeholder="Postal Code"
+                            value={newAddress.postal_code}
+                            onChange={(e) => setNewAddress(prev => ({ ...prev, postal_code: e.target.value }))}
+                            className="w-full rounded-lg bg-white/10 px-4 py-2 text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-white/20"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Country"
+                            value={newAddress.country}
+                            onChange={(e) => setNewAddress(prev => ({ ...prev, country: e.target.value }))}
+                            className="w-full rounded-lg bg-white/10 px-4 py-2 text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-white/20"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={handleAddAddress}
+                            className="flex-1 rounded-lg bg-white/20 px-4 py-2 text-sm transition-colors hover:bg-white/30"
+                          >
+                            Save Address
+                          </button>
+                          <button
+                            onClick={() => setShowAddressForm(false)}
+                            className="rounded-lg bg-white/10 px-4 py-2 text-sm transition-colors hover:bg-white/20"
+                          >
+                            Cancel
+                          </button>
                         </div>
                       </div>
-                    ))}
+                    )}
                   </div>
-                )}
-                
-                {!showAddressForm ? (
+    
+                  <div className="space-y-2 text-gray-400">
+                    <div className="flex justify-between">
+                      <span>Subtotal</span>
+                      <span>₹{subtotal.toFixed(2)}</span>
+                    </div>
+                    {discount > 0 && (
+                      <div className="flex justify-between text-green-400">
+                        <span>Discount</span>
+                        <span>-₹{discountAmount.toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span>Tax (10%)</span>
+                      <span>₹{tax.toFixed(2)}</span>
+                    </div>
+                    <div className="mt-4 flex justify-between border-t border-white/10 pt-4 text-lg text-white">
+                      <span>Total</span>
+                      <span>₹{total.toFixed(2)}</span>
+                    </div>
+                  </div>
                   <button
-                    onClick={() => setShowAddressForm(true)}
-                    className="w-full rounded-lg bg-white/10 px-4 py-2 text-sm transition-colors hover:bg-white/20"
+                    onClick={handleCheckout}
+                    className="w-full rounded-xl bg-white px-8 py-3 text-lg font-medium text-black transition-colors hover:bg-gray-100"
+                    disabled={!selectedAddressId}
                   >
-                    Add New Address
+                    Checkout
                   </button>
-                ) : (
-                  <div className="space-y-4 bg-white/10 p-4 rounded-lg">
-                    <input
-                      type="text"
-                      placeholder="Full Name"
-                      value={newAddress.full_name}
-                      onChange={(e) => setNewAddress(prev => ({ ...prev, full_name: e.target.value }))}
-                      className="w-full rounded-lg bg-white/10 px-4 py-2 text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-white/20"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Phone Number"
-                      value={newAddress.phone}
-                      onChange={(e) => setNewAddress(prev => ({ ...prev, phone: e.target.value }))}
-                      className="w-full rounded-lg bg-white/10 px-4 py-2 text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-white/20"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Street Address"
-                      value={newAddress.street_address}
-                      onChange={(e) => setNewAddress(prev => ({ ...prev, street_address: e.target.value }))}
-                      className="w-full rounded-lg bg-white/10 px-4 py-2 text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-white/20"
-                    />
-                    <div className="grid grid-cols-2 gap-4">
-                      <input
-                        type="text"
-                        placeholder="City"
-                        value={newAddress.city}
-                        onChange={(e) => setNewAddress(prev => ({ ...prev, city: e.target.value }))}
-                        className="w-full rounded-lg bg-white/10 px-4 py-2 text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-white/20"
-                      />
-                      <input
-                        type="text"
-                        placeholder="State"
-                        value={newAddress.state}
-                        onChange={(e) => setNewAddress(prev => ({ ...prev, state: e.target.value }))}
-                        className="w-full rounded-lg bg-white/10 px-4 py-2 text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-white/20"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <input
-                        type="text"
-                        placeholder="Postal Code"
-                        value={newAddress.postal_code}
-                        onChange={(e) => setNewAddress(prev => ({ ...prev, postal_code: e.target.value }))}
-                        className="w-full rounded-lg bg-white/10 px-4 py-2 text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-white/20"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Country"
-                        value={newAddress.country}
-                        onChange={(e) => setNewAddress(prev => ({ ...prev, country: e.target.value }))}
-                        className="w-full rounded-lg bg-white/10 px-4 py-2 text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-white/20"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handleAddAddress}
-                        className="flex-1 rounded-lg bg-white/20 px-4 py-2 text-sm transition-colors hover:bg-white/30"
-                      >
-                        Save Address
-                      </button>
-                      <button
-                        onClick={() => setShowAddressForm(false)}
-                        className="rounded-lg bg-white/10 px-4 py-2 text-sm transition-colors hover:bg-white/20"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2 text-gray-400">
-                <div className="flex justify-between">
-                  <span>Subtotal</span>
-                  <span>₹{subtotal.toFixed(2)}</span>
-                </div>
-                {discount > 0 && (
-                  <div className="flex justify-between text-green-400">
-                    <span>Discount</span>
-                    <span>-₹{discountAmount.toFixed(2)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span>Tax (10%)</span>
-                  <span>₹{tax.toFixed(2)}</span>
-                </div>
-                <div className="mt-4 flex justify-between border-t border-white/10 pt-4 text-lg text-white">
-                  <span>Total</span>
-                  <span>₹{total.toFixed(2)}</span>
                 </div>
               </div>
-              <button
-                onClick={handleCheckout}
-                className="w-full rounded-xl bg-white px-8 py-3 text-lg font-medium text-black transition-colors hover:bg-gray-100"
-                disabled={!selectedAddressId}
-              >
-                Checkout
-              </button>
-            </div>
-          </div>
-        )}
-      </main>
-    </div>
-  )
-}
+            )}
+          </main>
+        </div>
+      )
+    }

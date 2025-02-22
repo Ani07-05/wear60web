@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { motion } from 'framer-motion'
 import OrderTracker from '@/components/OrderTracker'
+import Image from 'next/image';
 
 type OrderItem = {
   id: string
@@ -102,10 +103,11 @@ export default function Orders() {
                   {order.order_items.map((item) => (
                     <div key={item.id} className="flex items-center space-x-4">
                       <div className="w-16 h-16 relative">
-                        <img
+                        <Image
                           src={item.product.image_url}
                           alt={item.product.name}
-                          className="object-cover rounded"
+                          width={100}
+                          height={100}
                         />
                       </div>
                       <div className="flex-1">

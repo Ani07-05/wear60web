@@ -6,17 +6,20 @@ import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { ShoppingBag, Heart } from 'lucide-react'
 
+interface User {
+  id: string
+  email: string
+  user_metadata?: {
+    first_name?: string
+    last_name?: string
+  }
+}
+
 export default function Home() {
-  const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
-        setUser(session.user)
-      } else {
-        setUser(null)
-      }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
       setLoading(false)
     })
 
@@ -78,40 +81,52 @@ function Hero() {
 }
 
 function FeaturedProducts() {
+  const products = [
+    {
+      id: 1,
+      name: 'Leather Biker Jacket',
+      description: 'Classic black leather motorcycle jacket',
+      image: 'https://images.unsplash.com/photo-1551028719-00167b16eac5',
+      price: 89.99
+    },
+    {
+      id: 2,
+      name: 'Cashmere Pullover',
+      description: 'Luxurious cashmere sweater in cream',
+      image: 'https://images.unsplash.com/photo-1576871337632-b9aef4c17ab9',
+      price: 89.99
+    },
+    {
+      id: 3,
+      name: 'Classic Blue Denim',
+      description: 'Traditional straight-fit blue jeans',
+      image: 'https://images.unsplash.com/photo-1542272604-787c3835535d',
+      price: 89.99
+    }
+  ]
+
   return (
     <section className="space-y-8">
       <h2 className="text-3xl font-bold">Featured Products</h2>
       <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
-        {[1, 2, 3].map((i) => (
+        {products.map((product) => (
           <motion.div
-            key={i}
+            key={product.id}
             whileHover={{ y: -8 }}
             className="group overflow-hidden rounded-xl bg-white/5 p-4 backdrop-blur-sm transition-colors hover:bg-white/10"
           >
             <div className="relative mb-4 aspect-square overflow-hidden rounded-lg">
               <Image
-                src={[
-                  'https://images.unsplash.com/photo-1551028719-00167b16eac5',
-                  'https://images.unsplash.com/photo-1576871337632-b9aef4c17ab9',
-                  'https://images.unsplash.com/photo-1542272604-787c3835535d'
-                ][i-1]}
-                alt={`Product ${i}`}
+                src={product.image}
+                alt={product.name}
                 fill
                 className="object-cover transition-transform group-hover:scale-105"
               />
             </div>
-            <h3 className="mb-2 text-lg font-medium">{[
-              'Leather Biker Jacket',
-              'Cashmere Pullover',
-              'Classic Blue Denim'
-            ][i-1]}</h3>
-            <p className="mb-4 text-sm text-gray-400">{[
-              'Classic black leather motorcycle jacket',
-              'Luxurious cashmere sweater in cream',
-              'Traditional straight-fit blue jeans'
-            ][i-1]}</p>
+            <h3 className="mb-2 text-lg font-medium">{product.name}</h3>
+            <p className="mb-4 text-sm text-gray-400">{product.description}</p>
             <div className="flex items-center justify-between">
-              <span className="text-lg font-bold">$89.99</span>
+              <span className="text-lg font-bold">${product.price}</span>
               <button className="bg-white px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-gray-200">
                 Add to Cart
               </button>
@@ -150,7 +165,7 @@ function Categories() {
   )
 }
 
-function Header({ user }: { user: any }) {
+export function Header({ user }: { user: User }) {
   return (
     <header className="bg-gray-900 py-4">
       <div className="container mx-auto flex items-center justify-between px-4">
@@ -169,7 +184,7 @@ function Header({ user }: { user: any }) {
   )
 }
 
-function ShopByCategory() {
+export function ShopByCategory() {
   const categories = [
     { name: 'Women', image: '/next.svg' },
     { name: 'Men', image: '/next.svg' },
@@ -196,14 +211,19 @@ function CategoryCard({ name, image }: { name: string; image: string }) {
       className="group cursor-pointer"
     >
       <div className="relative mb-3 aspect-square overflow-hidden rounded-2xl bg-gray-800">
-        <Image src={image || "/placeholder.svg"} alt={name} fill className="object-cover p-6 transition-transform group-hover:scale-110" />
+        <Image 
+          src={image || "/placeholder.svg"} 
+          alt={name} 
+          fill 
+          className="object-cover p-6 transition-transform group-hover:scale-110" 
+        />
       </div>
       <span className="text-lg font-medium text-white/80">{name}</span>
     </motion.div>
   )
 }
 
-function CuratedForYou() {
+export function CuratedForYou() {
   const products = [
     { id: 1, name: 'Cool Shirt', company: 'FashionCo', price: 1200 },
     { id: 2, name: 'Stylish Pants', company: 'TrendyWear', price: 1500 },
@@ -223,14 +243,26 @@ function CuratedForYou() {
   )
 }
 
-function ProductCard({ id, name, company, price }: { id: number; name: string; company: string; price: number }) {
+interface ProductCardProps {
+  id: number
+  name: string
+  company: string
+  price: number
+}
+
+function ProductCard({ id, name, company, price }: ProductCardProps) {
   return (
     <motion.div
       whileHover={{ y: -5 }}
       className="overflow-hidden rounded-xl bg-gray-900 p-4"
     >
       <div className="relative mb-4 aspect-square">
-        <Image src={`/assets/prod${id}.png`} alt={name} fill className="rounded-lg object-cover" />
+        <Image 
+          src={`/assets/prod${id}.png`} 
+          alt={name} 
+          fill 
+          className="rounded-lg object-cover" 
+        />
       </div>
       <div className="flex items-start justify-between">
         <div>

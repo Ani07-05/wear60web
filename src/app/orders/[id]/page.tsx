@@ -8,7 +8,13 @@ import L from 'leaflet';
 import { supabase } from '@/lib/supabase';
 
 // Fix Leaflet icon issue in Next.js
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+// Add proper type for the icon prototype
+interface IconDefault extends L.Icon.Default {
+  _getIconUrl?: string;
+}
+
+// Fix the any type and use proper typing
+delete ((L.Icon.Default.prototype as IconDefault)._getIconUrl);
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
@@ -26,7 +32,24 @@ export default function OrderTrackingPage({ params }: { params: { id: string } }
   const [orderLocation, setOrderLocation] = useState<OrderLocation | null>(null);
   const [error, setError] = useState<string>('');
 
+  // Move fetchOrderLocation inside useEffect to avoid dependency issues
   useEffect(() => {
+    const fetchOrderLocation = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('latitude, longitude, status, updated_at')
+          .eq('id', params.id)
+          .single();
+
+        if (error) throw error;
+        if (data) setOrderLocation(data);
+      } catch (err) {
+        setError('Failed to fetch order location');
+        console.error('Error:', err);
+      }
+    };
+
     // Initial fetch of order location
     fetchOrderLocation();
 
@@ -48,23 +71,6 @@ export default function OrderTrackingPage({ params }: { params: { id: string } }
       supabase.removeChannel(channel);
     };
   }, [params.id]);
-
-  const fetchOrderLocation = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('latitude, longitude, status, updated_at')
-        .eq('id', params.id)
-        .single();
-
-      if (error) throw error;
-      if (data) setOrderLocation(data);
-    } catch (err) {
-      setError('Failed to fetch order location');
-      console.error('Error:', err);
-    }
-  };
-
   if (error) return <div className="p-4 text-red-500">{error}</div>;
   if (!orderLocation) return <div className="p-4">Loading...</div>;
 

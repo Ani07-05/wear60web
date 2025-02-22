@@ -1,4 +1,3 @@
-// wear60web/src/components/OrderTracker.tsx
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
@@ -8,7 +7,12 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
 // Fix Leaflet icon issue in Next.js
-delete (L.Icon.Default.prototype as any)._getIconUrl
+// Using proper type instead of 'any'
+interface ExtendedIcon extends L.Icon.Default {
+  _getIconUrl?: () => string
+}
+
+delete (L.Icon.Default.prototype as ExtendedIcon)._getIconUrl
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
@@ -23,28 +27,36 @@ type OrderTrackerProps = {
   onClose: () => void
 }
 
+interface Location {
+  latitude: number | null
+  longitude: number | null
+}
+
 export default function OrderTracker({ orderId, latitude: initialLatitude, longitude: initialLongitude, status: initialStatus, onClose }: OrderTrackerProps) {
-  const [location, setLocation] = useState<{ latitude: number | null; longitude: number | null }>({ 
+  const [location, setLocation] = useState<Location>({ 
     latitude: initialLatitude, 
     longitude: initialLongitude 
   })
   const [status, setStatus] = useState(initialStatus)
   const mapRef = useRef<HTMLDivElement>(null)
-  const [map, setMap] = useState<any>(null)
+  const [map, setMap] = useState<L.Map | null>(null)
+  
+  // Move defaultLocation to a constant outside the component or use useMemo
+  // to avoid recreation on each render
   const defaultLocation = {
     latitude: 12.943060699936739,
     longitude: 77.54281118013748
-  }
+  } as const // Make it readonly to ensure consistency
 
   useEffect(() => {
     if (typeof window === 'undefined' || !mapRef.current) return
 
     // Force a reflow to ensure the container has proper dimensions
     mapRef.current.style.display = 'none'
-    mapRef.current.offsetHeight // Force reflow
+    void mapRef.current.offsetHeight // Force reflow with void operator
     mapRef.current.style.display = 'block'
 
-    const map = L.map(mapRef.current, {
+    const mapInstance = L.map(mapRef.current, {
       center: [location.latitude || defaultLocation.latitude, location.longitude || defaultLocation.longitude],
       zoom: 13,
       zoomControl: true
@@ -52,7 +64,7 @@ export default function OrderTracker({ orderId, latitude: initialLatitude, longi
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
-    }).addTo(map)
+    }).addTo(mapInstance)
 
     // Add delivery location marker with custom icon
     if (location.latitude && location.longitude) {
@@ -68,7 +80,7 @@ export default function OrderTracker({ orderId, latitude: initialLatitude, longi
 
       L.marker([location.latitude, location.longitude], { icon: deliveryIcon })
         .bindPopup('Delivery Location')
-        .addTo(map)
+        .addTo(mapInstance)
     }
 
     // Add default location marker
@@ -84,7 +96,7 @@ export default function OrderTracker({ orderId, latitude: initialLatitude, longi
 
     L.marker([defaultLocation.latitude, defaultLocation.longitude], { icon: defaultIcon })
       .bindPopup('Default Location')
-      .addTo(map)
+      .addTo(mapInstance)
 
     // Draw route line if we have both points
     if (location.latitude && location.longitude) {
@@ -92,18 +104,18 @@ export default function OrderTracker({ orderId, latitude: initialLatitude, longi
         [defaultLocation.latitude, defaultLocation.longitude],
         [location.latitude, location.longitude]
       ]
-      L.polyline(points, { color: '#3887be', weight: 5, opacity: 0.75 }).addTo(map)
+      L.polyline(points, { color: '#3887be', weight: 5, opacity: 0.75 }).addTo(mapInstance)
     }
 
     // Ensure proper sizing after map initialization
-    map.invalidateSize()
+    mapInstance.invalidateSize()
 
-    setMap(map)
+    setMap(mapInstance)
 
     return () => {
-      map.remove()
+      mapInstance.remove()
     }
-  }, [location.latitude, location.longitude])
+  }, [location.latitude, location.longitude, defaultLocation.latitude, defaultLocation.longitude])
 
   useEffect(() => {
     const channel = supabase
@@ -113,7 +125,7 @@ export default function OrderTracker({ orderId, latitude: initialLatitude, longi
         schema: 'public',
         table: 'orders',
         filter: `id=eq.${orderId}`,
-      }, (payload) => {
+      }, (payload: { new: { latitude: number | null; longitude: number | null; status: string } }) => {
         const { latitude, longitude, status } = payload.new
         setLocation({ latitude, longitude })
         setStatus(status)
@@ -128,10 +140,6 @@ export default function OrderTracker({ orderId, latitude: initialLatitude, longi
       supabase.removeChannel(channel)
     }
   }, [orderId, map])
-
-
-
-  // Always render the map container
 
   return (
     <motion.div
