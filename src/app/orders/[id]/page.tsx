@@ -18,7 +18,6 @@ type OrderLocation = {
   updated_at: string;
 };
 
-// Define all possible fields from the orders table
 type OrderPayload = {
   id: string;
   latitude: number;
@@ -36,24 +35,42 @@ type OrderPayload = {
   notes?: string;
 };
 
-type PageProps = {
-  params: {
-    id: string;
-  };
+// Remove the custom PageProps type and use the built-in type from Next.js
+export default async function OrderTrackingPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
   searchParams?: { [key: string]: string | string[] | undefined };
-};
-
-export default function OrderTrackingPage({ params }: PageProps) {
+}) {
   const [orderLocation, setOrderLocation] = useState<OrderLocation | null>(null);
   const [error, setError] = useState<string>('');
+  const [orderId, setOrderId] = useState<string | null>(null);
 
   useEffect(() => {
+    // Resolve the params promise
+    const initializeOrderId = async () => {
+      try {
+        const resolvedParams = await params;
+        setOrderId(resolvedParams.id);
+      } catch (err) {
+        setError('Failed to initialize order tracking');
+        console.error('Error:', err);
+      }
+    };
+
+    initializeOrderId();
+  }, [params]);
+
+  useEffect(() => {
+    if (!orderId) return;
+
     const fetchOrderLocation = async () => {
       try {
         const { data, error } = await supabase
           .from('orders')
           .select('latitude, longitude, status, updated_at')
-          .eq('id', params.id)
+          .eq('id', orderId)
           .single();
 
         if (error) throw error;
@@ -67,15 +84,14 @@ export default function OrderTrackingPage({ params }: PageProps) {
     fetchOrderLocation();
 
     const channel = supabase
-      .channel(`order-${params.id}`)
+      .channel(`order-${orderId}`)
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
         table: 'orders',
-        filter: `id=eq.${params.id}`,
+        filter: `id=eq.${orderId}`,
       }, (payload: RealtimePostgresChangesPayload<OrderPayload>) => {
-        const newData = payload.new as OrderPayload;
-        const { latitude, longitude, status, updated_at } = newData;
+        const { latitude, longitude, status, updated_at } = payload.new;
         setOrderLocation({ latitude, longitude, status, updated_at });
       })
       .subscribe();
@@ -83,10 +99,10 @@ export default function OrderTrackingPage({ params }: PageProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [params.id]);
+  }, [orderId]);
 
   if (error) return <div className="p-4 text-red-500">{error}</div>;
-  if (!orderLocation) return <div className="p-4">Loading...</div>;
+  if (!orderLocation || !orderId) return <div className="p-4">Loading...</div>;
 
   return (
     <div className="p-4">
@@ -101,7 +117,7 @@ export default function OrderTrackingPage({ params }: PageProps) {
             center={[orderLocation.latitude, orderLocation.longitude]}
             marker={{
               position: [orderLocation.latitude, orderLocation.longitude],
-              popup: `Order #${params.id}\nStatus: ${orderLocation.status}`
+              popup: `Order #${orderId}\nStatus: ${orderLocation.status}`
             }}
           />
         )}
