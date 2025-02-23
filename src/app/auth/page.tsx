@@ -1,3 +1,4 @@
+// wear60web/src/app/auth/page.tsx
 // src/app/auth/page.tsx
 'use client'
 
@@ -5,7 +6,6 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { motion } from 'framer-motion'
 import { useRouter, useSearchParams } from 'next/navigation'
-import Link from 'next/link'
 
 interface SessionUser {
   id: string
