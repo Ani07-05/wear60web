@@ -58,8 +58,8 @@ export default function Navbar() {
             )}
             {[
               { name: 'Shop', href: '/shop' },
-              { name: 'About', href: '/about' },
-              { name: 'Cart', href: '/cart' }
+              { name: 'Cart', href: '/cart' },
+              {name: 'Orders', href:'/orders'}
             ].map((item) => (
               <Link 
                 key={item.name} 
