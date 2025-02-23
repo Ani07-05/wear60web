@@ -1,4 +1,3 @@
-// wear60web/src/middleware.ts
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
@@ -13,18 +12,21 @@ export async function middleware(req: NextRequest) {
 
   // Refresh session if exists
   if (session) {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      await supabase.from('users').upsert({
-        id: user.id,
-        email: user.email,
-        full_name: user.user_metadata.full_name || '',
-        avatar_url: user.user_metadata.avatar_url || '',
-        role: 'customer', // Default role for new users
-        created_at: new Date().toISOString(),
-      })
-    }
+    return res
+  }
+
+  // Redirect if accessing protected routes
+  const protectedRoutes = ['/dashboard', '/profile', '/settings']
+  if (protectedRoutes.includes(req.nextUrl.pathname)) {
+    const redirectUrl = req.nextUrl.clone()
+    redirectUrl.pathname = '/auth'
+    redirectUrl.searchParams.set('from', req.nextUrl.pathname)
+    return NextResponse.redirect(redirectUrl)
   }
 
   return res
+}
+
+export const config = {
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 }
