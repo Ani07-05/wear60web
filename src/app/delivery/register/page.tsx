@@ -1,3 +1,4 @@
+// wear60web/src/app/delivery/register/page.tsx
 'use client'
 
 import { useState } from 'react'

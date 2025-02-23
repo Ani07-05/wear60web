@@ -1,3 +1,4 @@
+// wear60web/src/lib/config.ts
 // Environment configuration
 
 export const config = {

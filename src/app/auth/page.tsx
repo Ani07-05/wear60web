@@ -1,36 +1,33 @@
+// wear60web/src/app/auth/page.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { motion } from 'framer-motion'
+import { useRouter } from 'next/navigation'
 
-interface User {
-  id: string;
-  email: string;
+interface SessionUser {
+  id: string
+  email?: string
   user_metadata?: {
-    first_name?: string;
-  };
+    name?: string
+    first_name?: string
+  }
 }
 
 export default function Auth() {
+  const router = useRouter()
   const [loading, setLoading] = useState(false)
-  // Remove user state since it's not being used
-  
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        // Remove setUser since we're not using the user state
-      }
-    })
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        // Remove setUser since we're not using the user state
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') {
+        router.push('/')
       }
     })
 
     return () => subscription?.unsubscribe()
-  }, [])
+  }, [router])
 
   const handleGoogleSignIn = async () => {
     try {
@@ -61,19 +58,26 @@ export default function Auth() {
 }
 
 function AuthHeader() {
-  const [session, setSession] = useState<{ user: User } | null>(null);
+  const [session, setSession] = useState<{ user: SessionUser } | null>(null)
   
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        setSession({ user: {
-          id: session.user.id,
-          email: session.user.email || '',
-          user_metadata: session.user.user_metadata
-        }})
+        setSession({ user: session.user })
+      } else {
+        setSession(null)
       }
     })
+
+    return () => subscription?.unsubscribe()
   }, [])
+
+  const getDisplayName = () => {
+    if (!session?.user) return 'Welcome Back'
+    return `Welcome back, ${session.user.user_metadata?.first_name || 
+            session.user.user_metadata?.name || 
+            session.user.email?.split('@')[0]}!`
+  }
 
   return (
     <section className="relative h-[40vh] overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600/20 to-purple-600/20 backdrop-blur">
@@ -84,7 +88,7 @@ function AuthHeader() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-6 text-5xl font-bold md:text-6xl"
         >
-          {session ? `Welcome back, ${session.user.user_metadata?.first_name || session.user.email?.split('@')[0]}!` : 'Welcome Back'}
+          {getDisplayName()}
         </motion.h1>
         <motion.p 
           initial={{ opacity: 0, y: 20 }}
