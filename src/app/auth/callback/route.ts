@@ -9,7 +9,12 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = createRouteHandlerClient({ cookies })
-    await supabase.auth.exchangeCodeForSession(code)
+    try {
+      await supabase.auth.exchangeCodeForSession(code)
+    } catch (error) {
+      console.error('Error exchanging code for session:', error)
+      return NextResponse.redirect(new URL('/auth?error=auth_failed', requestUrl.origin))
+    }
   }
 
   return NextResponse.redirect(new URL('/', requestUrl.origin))
