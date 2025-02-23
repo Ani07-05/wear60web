@@ -10,14 +10,14 @@ const MapWithNoSSR = dynamic(
   { ssr: false }
 );
 
-type OrderLocation = {
+interface OrderLocation {
   latitude: number;
   longitude: number;
   status: string;
   updated_at: string;
-};
+}
 
-type OrderPayload = {
+interface OrderPayload {
   id: string;
   latitude: number;
   longitude: number;
@@ -32,13 +32,12 @@ type OrderPayload = {
   total_amount?: number;
   payment_status?: string;
   notes?: string;
-};
+}
 
 interface OrderTrackingClientProps {
   orderId: string;
 }
 
-// Helper function to validate order location data
 function isValidOrderLocation(data: unknown): data is OrderLocation {
   return (
     typeof data === 'object' &&
@@ -57,13 +56,14 @@ export default function OrderTrackingClient({ orderId }: OrderTrackingClientProp
   useEffect(() => {
     const fetchOrderLocation = async () => {
       try {
-        const { data, error } = await supabase
+        const { data, error: fetchError } = await supabase
           .from('orders')
           .select('latitude, longitude, status, updated_at')
           .eq('id', orderId)
           .single();
 
-        if (error) throw error;
+        if (fetchError) throw fetchError;
+        
         if (data && isValidOrderLocation(data)) {
           setOrderLocation(data);
         } else {
@@ -79,7 +79,7 @@ export default function OrderTrackingClient({ orderId }: OrderTrackingClientProp
 
     const channel = supabase
       .channel(`order-${orderId}`)
-      .on('postgres_changes', {
+      .on<OrderPayload>('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
         table: 'orders',
@@ -96,12 +96,13 @@ export default function OrderTrackingClient({ orderId }: OrderTrackingClientProp
           });
         } else {
           console.error('Invalid payload received:', newData);
+          setError('Invalid data received from server');
         }
       })
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
   }, [orderId]);
 
@@ -116,15 +117,13 @@ export default function OrderTrackingClient({ orderId }: OrderTrackingClientProp
         <p>Last Updated: {new Date(orderLocation.updated_at).toLocaleString()}</p>
       </div>
       <div className="h-[500px] w-full rounded-lg overflow-hidden">
-        {orderLocation && (
-          <MapWithNoSSR
-            center={[orderLocation.latitude, orderLocation.longitude]}
-            marker={{
-              position: [orderLocation.latitude, orderLocation.longitude],
-              popup: `Order #${orderId}\nStatus: ${orderLocation.status}`
-            }}
-          />
-        )}
+        <MapWithNoSSR
+          center={[orderLocation.latitude, orderLocation.longitude]}
+          marker={{
+            position: [orderLocation.latitude, orderLocation.longitude],
+            popup: `Order #${orderId}\nStatus: ${orderLocation.status}`
+          }}
+        />
       </div>
     </div>
   );

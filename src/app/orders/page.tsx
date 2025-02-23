@@ -1,11 +1,12 @@
 // wear60web/src/app/orders/page.tsx
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { motion } from 'framer-motion'
-import OrderTracker from '@/components/OrderTracker'
-import Image from 'next/image';
+import dynamic from 'next/dynamic'
+import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 
 type OrderItem = {
   id: string
@@ -29,20 +30,24 @@ type Order = {
   order_items: OrderItem[]
 }
 
+// Dynamically load OrderTracker with SSR disabled
+const OrderTracker = dynamic(
+  () => import('@/components/OrderTracker'),
+  { ssr: false }
+)
+
 export default function Orders() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [trackingOrder, setTrackingOrder] = useState<Order | null>(null)
+  const router = useRouter()
+  const [mounted, setMounted] = useState(false)
 
-  useEffect(() => {
-    fetchOrders()
-  }, [])
-
-  async function fetchOrders() {
+  const fetchOrders = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        window.location.href = '/auth'
+        router.push('/auth')
         return
       }
 
@@ -62,9 +67,14 @@ export default function Orders() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [router])
 
-  if (loading) {
+  useEffect(() => {
+    setMounted(true)
+    fetchOrders()
+  }, [fetchOrders])
+
+  if (!mounted || loading) {
     return (
       <div className="min-h-screen pt-20 px-4">
         <div className="container mx-auto">
@@ -108,6 +118,8 @@ export default function Orders() {
                           alt={item.product.name}
                           width={100}
                           height={100}
+                          sizes="(max-width: 768px) 100vw, 33vw"
+                          className="object-cover"
                         />
                       </div>
                       <div className="flex-1">
@@ -134,7 +146,7 @@ export default function Orders() {
           </div>
         )}
       </div>
-      {trackingOrder && (
+      {mounted && trackingOrder && (
         <OrderTracker
           orderId={trackingOrder.id}
           latitude={trackingOrder.latitude}

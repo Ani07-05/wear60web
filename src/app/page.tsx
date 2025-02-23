@@ -1,43 +1,10 @@
+// wear60web/src/app/page.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
-import { ShoppingBag, Heart } from 'lucide-react'
-
-interface User {
-  id: string
-  email: string
-  user_metadata?: {
-    first_name?: string
-    last_name?: string
-  }
-}
-
-export default function Home() {
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      setLoading(false)
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
-
-  if (loading) {
-    return <LoadingSpinner />
-  }
-
-  return (
-    <div className="space-y-16">
-      <Hero />
-      <FeaturedProducts />
-      <Categories />
-    </div>
-  )
-}
 
 function LoadingSpinner() {
   return (
@@ -75,6 +42,33 @@ function Hero() {
         >
           Shop Now
         </motion.button>
+      </div>
+    </section>
+  )
+}
+
+function Categories() {
+  const categories = [
+    { name: "Men's Wear", count: 28 },
+    { name: "Women's Wear", count: 35 },
+    { name: 'Kids', count: 20 },
+    { name: 'Accessories', count: 15 },
+  ]
+
+  return (
+    <section className="space-y-8">
+      <h2 className="text-3xl font-bold">Categories</h2>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        {categories.map((category) => (
+          <motion.div
+            key={category.name}
+            whileHover={{ scale: 1.05 }}
+            className="group cursor-pointer rounded-xl bg-white/5 p-6 text-center backdrop-blur-sm transition-colors hover:bg-white/10"
+          >
+            <h3 className="mb-2 text-lg font-medium">{category.name}</h3>
+            <p className="text-sm text-gray-400">{category.count} products</p>
+          </motion.div>
+        ))}
       </div>
     </section>
   )
@@ -121,6 +115,7 @@ function FeaturedProducts() {
                 alt={product.name}
                 fill
                 className="object-cover transition-transform group-hover:scale-105"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               />
             </div>
             <h3 className="mb-2 text-lg font-medium">{product.name}</h3>
@@ -138,147 +133,28 @@ function FeaturedProducts() {
   )
 }
 
-function Categories() {
-  const categories = [
-    { name: "Men's Wear", count: 28 },
-    { name: "Women's Wear", count: 35 },
-    { name: 'Kids', count: 20 },
-    { name: 'Accessories', count: 15 },
-  ]
+export default function Home() {
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      setLoading(false)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  if (loading) {
+    return <LoadingSpinner />
+  }
 
   return (
-    <section className="space-y-8">
-      <h2 className="text-3xl font-bold">Categories</h2>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {categories.map((category) => (
-          <motion.div
-            key={category.name}
-            whileHover={{ scale: 1.05 }}
-            className="group cursor-pointer rounded-xl bg-white/5 p-6 text-center backdrop-blur-sm transition-colors hover:bg-white/10"
-          >
-            <h3 className="mb-2 text-lg font-medium">{category.name}</h3>
-            <p className="text-sm text-gray-400">{category.count} products</p>
-          </motion.div>
-        ))}
+    <main className="min-h-screen bg-black text-white">
+      <div className="container mx-auto px-4 py-8 space-y-16">
+        <Hero />
+        <FeaturedProducts />
+        <Categories />
       </div>
-    </section>
-  )
-}
-
-export function Header({ user }: { user: User }) {
-  return (
-    <header className="bg-gray-900 py-4">
-      <div className="container mx-auto flex items-center justify-between px-4">
-        <h1 className="text-2xl font-bold">CoolShop</h1>
-        {user ? (
-          <button className="rounded-full bg-white px-4 py-2 text-black transition-colors hover:bg-gray-200">
-            Logout
-          </button>
-        ) : (
-          <button className="rounded-full bg-white px-4 py-2 text-black transition-colors hover:bg-gray-200">
-            Login
-          </button>
-        )}
-      </div>
-    </header>
-  )
-}
-
-export function ShopByCategory() {
-  const categories = [
-    { name: 'Women', image: '/next.svg' },
-    { name: 'Men', image: '/next.svg' },
-    { name: 'Teens', image: '/next.svg' },
-    { name: 'Kids', image: '/next.svg' },
-  ]
-
-  return (
-    <section className="mb-12">
-      <h2 className="mb-6 text-2xl font-semibold">Shop by Category</h2>
-      <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
-        {categories.map((category) => (
-          <CategoryCard key={category.name} {...category} />
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function CategoryCard({ name, image }: { name: string; image: string }) {
-  return (
-    <motion.div
-      whileHover={{ scale: 1.05 }}
-      className="group cursor-pointer"
-    >
-      <div className="relative mb-3 aspect-square overflow-hidden rounded-2xl bg-gray-800">
-        <Image 
-          src={image || "/placeholder.svg"} 
-          alt={name} 
-          fill 
-          className="object-cover p-6 transition-transform group-hover:scale-110" 
-        />
-      </div>
-      <span className="text-lg font-medium text-white/80">{name}</span>
-    </motion.div>
-  )
-}
-
-export function CuratedForYou() {
-  const products = [
-    { id: 1, name: 'Cool Shirt', company: 'FashionCo', price: 1200 },
-    { id: 2, name: 'Stylish Pants', company: 'TrendyWear', price: 1500 },
-    { id: 3, name: 'Awesome Jacket', company: 'UrbanStyle', price: 2200 },
-    { id: 4, name: 'Chic Dress', company: 'ElegantFashion', price: 1800 },
-  ]
-
-  return (
-    <section>
-      <h2 className="mb-6 text-2xl font-semibold">Curated for you</h2>
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-4">
-        {products.map((product) => (
-          <ProductCard key={product.id} {...product} />
-        ))}
-      </div>
-    </section>
-  )
-}
-
-interface ProductCardProps {
-  id: number
-  name: string
-  company: string
-  price: number
-}
-
-function ProductCard({ id, name, company, price }: ProductCardProps) {
-  return (
-    <motion.div
-      whileHover={{ y: -5 }}
-      className="overflow-hidden rounded-xl bg-gray-900 p-4"
-    >
-      <div className="relative mb-4 aspect-square">
-        <Image 
-          src={`/assets/prod${id}.png`} 
-          alt={name} 
-          fill 
-          className="rounded-lg object-cover" 
-        />
-      </div>
-      <div className="flex items-start justify-between">
-        <div>
-          <h3 className="text-sm text-gray-400">{company}</h3>
-          <p className="mb-1 text-sm">{name}</p>
-          <p className="font-semibold">₹{price}</p>
-        </div>
-        <div className="flex gap-2">
-          <button className="rounded-full bg-white p-2 text-black transition-colors hover:bg-gray-200">
-            <ShoppingBag size={18} />
-          </button>
-          <button className="rounded-full bg-white p-2 text-black transition-colors hover:bg-gray-200">
-            <Heart size={18} />
-          </button>
-        </div>
-      </div>
-    </motion.div>
+    </main>
   )
 }
