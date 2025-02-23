@@ -1,3 +1,4 @@
+// wear60web/src/app/auth/page.tsx
 'use client'
 
 import { useEffect, useState, Suspense } from 'react'
@@ -205,35 +206,30 @@ export default function AuthPage() {
   }, [router])
 
   const handleGoogleSignIn = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      
-      console.log('Initiating Google sign-in')
-      const redirectUrl = `${window.location.origin}/auth/callback`
-      console.log('Redirect URL:', redirectUrl)
-      
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: redirectUrl,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        }
-      })
-      
-      if (error) throw error
-      console.log('OAuth flow initiated:', data)
-      
-    } catch (error) {
-      console.error('Google sign-in error:', error)
-      setError('Failed to initiate Google sign-in. Please try again.')
-    } finally {
-      setLoading(false)
-    }
+  try {
+    setLoading(true)
+    setError(null)
+    
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+      }
+    })
+    
+    if (error) throw error
+    
+  } catch (error) {
+    console.error('Google sign-in error:', error)
+    setError('Failed to initiate Google sign-in. Please try again.')
+  } finally {
+    setLoading(false)
   }
+}
 
   const handleSignOut = async () => {
     try {
