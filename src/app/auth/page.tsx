@@ -20,8 +20,9 @@ export default function Auth() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN') {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        console.log('User signed in:', session.user) // Log user details
         router.push('/')
       }
     })

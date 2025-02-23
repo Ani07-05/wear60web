@@ -1,3 +1,4 @@
+// wear60web/src/components/Navbar.tsx
 "use client"
 
 import { useState, useEffect } from "react"
@@ -6,10 +7,11 @@ import { supabase } from "@/lib/supabase"
 import { useCart } from "@/contexts/CartContext"
 
 interface User {
-  email: string;
+  email: string
   user_metadata?: {
-    first_name?: string;
-  };
+    first_name?: string
+    name?: string
+  }
 }
 
 export default function Navbar() {
@@ -18,18 +20,21 @@ export default function Navbar() {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user?.email) {
+      if (session?.user) {
         setUser({
-          email: session.user.email,
+          email: session.user.email || '',
           user_metadata: session.user.user_metadata
         })
+      } else {
+        setUser(null)
       }
     })
 
+    // Check existing session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user?.email) {
+      if (session?.user) {
         setUser({
-          email: session.user.email,
+          email: session.user.email || '',
           user_metadata: session.user.user_metadata
         })
       }
@@ -48,7 +53,7 @@ export default function Navbar() {
           <div className="hidden md:flex items-center space-x-6">
             {user && (
               <span className="text-sm text-gray-300">
-                Welcome, {user.user_metadata?.first_name || user.email.split('@')[0]}!
+                Welcome, {user.user_metadata?.first_name || user.user_metadata?.name || user.email.split('@')[0]}!
               </span>
             )}
             {[
